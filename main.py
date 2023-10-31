@@ -49,9 +49,6 @@ for user in users_id:
 
 
 
-print("--- %s seconds ---" % (time.time() - start_time))
-
-
 
 color_map = []
 for node in G:
@@ -63,5 +60,27 @@ nx.draw_spring(G, with_labels=False, node_color=color_map, node_size=100)
 plt.savefig('result.png')
 plt.show()
 
+with open("result.txt", "a") as file:
+    nodes = list(nx.betweenness_centrality(G).items())
+    print('Центральность по посредничеству: ', file=file)
+    for n in nodes:
+        for g in group_ids:
+            if n[0] == g:
+                print(n, file=file)
+
+    nodes = list(nx.closeness_centrality(G).items())
+    print('Центральность по близости: ', file=file)
+    for n in nodes:
+        for g in group_ids:
+            if n[0] == g:
+                print(n, file=file)
+
+    nodes = list(nx.eigenvector_centrality(G).items())
+    print('Центральность по собственному значению: ', file=file)
+    for n in nodes:
+        for g in group_ids:
+            if n[0] == g:
+                print(n, file=file)
 
 
+print("--- %s seconds ---" % (time.time() - start_time))
