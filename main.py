@@ -1,14 +1,13 @@
 import vk_api
 import networkx as nx
-import numpy as np
 import matplotlib.pyplot as plt
-import scipy as sp
 import time
 start_time = time.time()
 
+
 access_token = 'vk1.a.AEAygR6PdYUaDeLqDAhUjcj6pucYbJQB9QJaQhBP78CNT6J9QjbAeAL9p7DVccsYEqUqKXdhRLsvzgxtVeWNIFYBqIc-G7VK4yuCyvEiuG7ovBVKGbiSzJvF2fBo1cT3M--HZfZaEosNa4auvgrNdHNlleKswN2gI8TH7kd0YtdbZBavTcGiGymAIEBJi3ciT-ZhJdMMyplpSsPYZuI1mw'
 
-group_ids = [308412461, 232210943, 209834587, 45745684, 513083713, 606396724, 188959578, 275549140, 412981588]
+group_ids = []
 
 
 try:
@@ -19,68 +18,57 @@ except Exception as error:
 vk = vk_session.get_api()
 
 G = nx.Graph()
-users_id = []
-friends = {}
+
+with open("source_id.txt", "r") as file:
+    while line := file.readline():
+        group_ids.append(line.rstrip())
+
 
 def find_friends(id, deep):
-    users_id.append(id)
+    G.add_node(id)
     while deep > 0:
-        try:
-            users = vk.friends.get(user_id=id, fields='deactivated,is_closed', count=10)
-            friends[id] = users
-            deep -= 1
-            for k in users['items']:
-                G.add_edge(id, k['id'])
-                if 'deactivated' in k or k['is_closed']:
-                    users['items'].remove(k)
-                else:
-                    find_friends(k['id'], deep)
-        except:
-            return 
+        users = vk.friends.get(user_id=id, fields='deactivated,is_closed', count=10)
+        deep -= 1
+        for k in users['items']:
+            G.add_edge(id, k['id'])
+            if 'deactivated' in k or k['is_closed']:
+                users['items'].remove(k)
+            else:
+                find_friends(k['id'], deep)
 
 for id in group_ids:
     find_friends(id, 3)
-
-for user in users_id:
-    for k in friends:
-        for i in friends[k]['items']:
-            if user == i['id']:
-                G.add_edge(user, k)
+print("VK done")
 
 
-
-
-color_map = []
-for node in G:
-    if node in group_ids:
-        color_map.append('blue')
-    else:
-        color_map.append('red')
-nx.draw_spring(G, with_labels=False, node_color=color_map, node_size=100)
+plt.figure(num=None, figsize=(40, 20), dpi=100)
+nx.draw(G, with_labels=False, node_color='red', node_size=50)
+print("Draw1 fine")
+ax = plt.gca()
+ax.collections[0].set_edgecolor("#000000")
 plt.savefig('result.png')
 plt.show()
 
-with open("result.txt", "a") as file:
-    nodes = list(nx.betweenness_centrality(G).items())
+print("Draw2 fine")
+
+with open("result.txt", "w") as file:
+    print('\nЦентральность по близости: ', file=file)
+    for g in group_ids:
+        nodes = nx.closeness_centrality(G, u=g)
+        print(vk.users.get(user_id=g)[0]['first_name'], vk.users.get(user_id=g)[0]['last_name'], nodes, file=file)
+
+    nodes = nx.betweenness_centrality(G,k=100)
     print('Центральность по посредничеству: ', file=file)
-    for n in nodes:
-        for g in group_ids:
-            if n[0] == g:
-                print(n, file=file)
+    for g in group_ids:
+        print(vk.users.get(user_id=g)[0]['first_name'], vk.users.get(user_id=g)[0]['last_name'], nodes[g], file=file)
 
-    nodes = list(nx.closeness_centrality(G).items())
-    print('Центральность по близости: ', file=file)
-    for n in nodes:
-        for g in group_ids:
-            if n[0] == g:
-                print(n, file=file)
+    nodes = nx.eigenvector_centrality(G, max_iter=20)
+    print('\nЦентральность по собственному значению: ', file=file)
+    for g in group_ids:
+        print(vk.users.get(user_id=g)[0]['first_name'], vk.users.get(user_id=g)[0]['last_name'], nodes[g], file=file)
 
-    nodes = list(nx.eigenvector_centrality(G).items())
-    print('Центральность по собственному значению: ', file=file)
-    for n in nodes:
-        for g in group_ids:
-            if n[0] == g:
-                print(n, file=file)
+    print("\n\n%s seconds" % (time.time() - start_time), file=file)
+    print("Количество вершин ", G.number_of_nodes(), file=file)
+    print("Количество ребер ", G.number_of_edges(), file=file)
 
-
-print("--- %s seconds ---" % (time.time() - start_time))
+print("%s seconds" % (time.time() - start_time))
